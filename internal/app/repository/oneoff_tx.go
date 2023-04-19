@@ -9,6 +9,7 @@ import (
 
 type ITxNewRepo interface {
 	GetTransferTx(chainId string, height, limit int64) ([]*oneoff.TxNew, error)
+	SaveTransfer(data []*oneoff.TxNew) error
 }
 
 var _ ITxNewRepo = new(TxNewRepo)
@@ -26,6 +27,11 @@ func (repo *TxNewRepo) GetTransferTx(chainId string, height, limit int64) ([]*on
 	}
 	err := repo.coll().Find(context.Background(), query).Sort("height").Limit(limit).All(&res)
 	return res, err
+}
+
+func (repo *TxNewRepo) SaveTransfer(data []*oneoff.TxNew) error {
+	_, err := repo.coll().InsertMany(context.Background(), data, insertIgnoreErrOpt)
+	return err
 }
 
 func (repo *TxNewRepo) coll() *qmgo.Collection {

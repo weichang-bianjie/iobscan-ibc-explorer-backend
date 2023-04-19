@@ -75,7 +75,7 @@ func (ctl *TaskController) Run(c *gin.Context) {
 		case fixFailRecvPacketTask.Name():
 			fixFailRecvPacketTask.Run()
 		case addTransferDataTask.Name():
-			addTransferDataTask.RunWithParam(c.PostForm("new_chains"))
+			//addTransferDataTask.RunWithParam(c.PostForm("new_chains"))
 		case fixAcknowledgeTxTask.Name():
 			fixAcknowledgeTxTask.Run()
 		case fixAckTxPacketIdTask.Name():

@@ -8,7 +8,7 @@ type (
 	TxNew struct {
 		ChainId string `bson:"chain_id"`
 		Height  int64  `bson:"height"`
-		TxHash  string `bson:"tx_hash"`
+		//TxHash  string `bson:"tx_hash"`
 	}
 )
 
@@ -24,5 +24,5 @@ func (i TxNew) CollectionName() string {
 }
 
 func (i TxNew) PkKvPair() map[string]interface{} {
-	return bson.M{"chain_id": i.ChainId, "tx_hash": i.TxHash}
+	return bson.M{"chain_id": i.ChainId}
 }

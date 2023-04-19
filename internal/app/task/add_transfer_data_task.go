@@ -3,8 +3,8 @@ package task
 import (
 	"github.com/bianjieai/iobscan-ibc-explorer-backend/internal/app/global"
 	"github.com/bianjieai/iobscan-ibc-explorer-backend/internal/app/model/entity"
+	"github.com/bianjieai/iobscan-ibc-explorer-backend/internal/app/model/oneoff"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 type AddTransferDataTask struct {
@@ -21,19 +21,14 @@ func (t *AddTransferDataTask) Switch() bool {
 }
 
 func (t *AddTransferDataTask) Run() int {
-	return t.handle(global.Config.ChainConfig.AddTransferChains)
+	return 1
 }
 
-func (t *AddTransferDataTask) RunWithParam(chainsStr string) int {
-	return t.handle(chainsStr)
+func (t *AddTransferDataTask) RunWithParam(chainsStr string, height int64) int {
+	return t.handle(chainsStr, height)
 }
 
-func (t *AddTransferDataTask) handle(chainsStr string) int {
-	newChainIds := strings.Split(chainsStr, ",")
-	if len(newChainIds) == 0 {
-		logrus.Errorf("task %s don't have new chains", t.Name())
-		return 1
-	}
+func (t *AddTransferDataTask) handle(chain string, height int64) int {
 	chainMap, err := getAllChainMap()
 	if err != nil {
 		return -1
@@ -42,22 +37,25 @@ func (t *AddTransferDataTask) handle(chainsStr string) int {
 		chainMap: chainMap,
 	}
 
-	chainCureight := make(map[string]int64, len(newChainIds))
-	for _, val := range newChainIds {
-		logrus.Info("start handle chain:", val)
-		for {
-			curH, size, err := t.DoChain(w, val, chainCureight[val], defaultMaxHandlerTx)
-			if err != nil {
-				logrus.Error(err.Error())
-				return -1
-			}
-			if size < defaultMaxHandlerTx {
-				logrus.Info("finish handle chain:", val)
-				break
-			}
-			chainCureight[val] = curH
+	logrus.Info("start handle chain:", chain)
+	for {
+		curH, size, err := t.DoChain(w, chain, height, defaultMaxHandlerTx)
+		if err != nil {
+			_ = txNewRepo.SaveTransfer([]*oneoff.TxNew{
+				{Height: curH, ChainId: chain},
+			})
+			logrus.Error(err.Error())
+			return -1
+		}
+		if size < defaultMaxHandlerTx {
+			_ = txNewRepo.SaveTransfer([]*oneoff.TxNew{
+				{Height: curH, ChainId: chain},
+			})
+			logrus.Info("finish handle chain:", chain)
+			break
 		}
 	}
+
 	return 1
 }
 
@@ -67,15 +65,8 @@ func (t *AddTransferDataTask) DoChain(w *syncTransferTxWorker, chainId string, h
 	if err != nil {
 		return maxHeight, 0, err
 	}
-	transferHashDatas, err := txNewRepo.GetTransferTx(chainId, height, limit)
-	if err != nil {
-		return maxHeight, 0, err
-	}
-	var hashes []string
-	for _, val := range transferHashDatas {
-		hashes = append(hashes, val.TxHash)
-	}
-	txList, err := txRepo.GetTxByHashes(chainId, hashes)
+
+	txList, err := w.getTxList(chainId, height, limit)
 	if err != nil {
 		return maxHeight, 0, err
 	}
